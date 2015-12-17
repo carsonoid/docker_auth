@@ -23,6 +23,7 @@ type ACLMongoConfig struct {
 	MongoConfig *mgo_session.Config `yaml:"dial_info,omitempty"`
 	Collection  string              `yaml:"collection,omitempty"`
 	CacheTTL    time.Duration       `yaml:"cache_ttl,omitempty"`
+	SortKeys    []string            `yaml:"sort_keys",omitempty`
 }
 
 type aclMongoAuthorizer struct {
@@ -136,20 +137,8 @@ func (ma *aclMongoAuthorizer) updateACLCache() error {
 	defer tmp_session.Close()
 
 	collection := tmp_session.DB(ma.config.MongoConfig.DialInfo.Database).C(ma.config.Collection)
-
-	// Create sequence index obj
-	index := mgo.Index{
-		Key:      []string{"seq"},
-		Unique:   true,
-		DropDups: false, // Error on duplicate key document instead of drop.
-	}
-
-	// Enforce a sequence index. This is fine to do frequently per the docs:
-	// https://godoc.org/gopkg.in/mgo.v2#Collection.EnsureIndex:
-	//    Once EnsureIndex returns successfully, following requests for the same index
-	//    will not contact the server unless Collection.DropIndex is used to drop the same
-	//    index, or Session.ResetIndexCache is called.
-	if err := collection.EnsureIndex(index); err != nil {
+	err := collection.Find(bson.M{}).Sort(ma.config.SortKeys...).All(&newACL)
+	if err != nil {
 		return err
 	}
 
