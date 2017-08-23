@@ -26,6 +26,7 @@ type ACLMongoConfig struct {
 }
 
 type aclMongoAuthorizer struct {
+	options          *ACLOptions
 	lastCacheUpdate  time.Time
 	lock             sync.RWMutex
 	config           *ACLMongoConfig
@@ -37,7 +38,7 @@ type aclMongoAuthorizer struct {
 }
 
 // NewACLMongoAuthorizer creates a new ACL MongoDB authorizer
-func NewACLMongoAuthorizer(c *ACLMongoConfig) (Authorizer, error) {
+func NewACLMongoAuthorizer(c *ACLMongoConfig, options *ACLOptions) (Authorizer, error) {
 	// Attempt to create new MongoDB session.
 	session, err := mgo_session.New(c.MongoConfig)
 	if err != nil {
@@ -45,6 +46,7 @@ func NewACLMongoAuthorizer(c *ACLMongoConfig) (Authorizer, error) {
 	}
 
 	authorizer := &aclMongoAuthorizer{
+		options:      options,
 		config:       c,
 		session:      session,
 		updateTicker: time.NewTicker(c.CacheTTL),
@@ -179,7 +181,7 @@ func (ma *aclMongoAuthorizer) updateACLCache() error {
 		retACL = append(retACL, e.ACLEntry)
 	}
 
-	newStaticAuthorizer, err := NewACLAuthorizer(retACL)
+	newStaticAuthorizer, err := NewACLAuthorizer(retACL, ma.options)
 	if err != nil {
 		return err
 	}

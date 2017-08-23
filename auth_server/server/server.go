@@ -47,14 +47,14 @@ func NewAuthServer(c *Config) (*AuthServer, error) {
 		authorizers: []authz.Authorizer{},
 	}
 	if c.ACL != nil {
-		staticAuthorizer, err := authz.NewACLAuthorizer(c.ACL)
+		staticAuthorizer, err := authz.NewACLAuthorizer(c.ACL, c.ACLOptions)
 		if err != nil {
 			return nil, err
 		}
 		as.authorizers = append(as.authorizers, staticAuthorizer)
 	}
 	if c.ACLMongo != nil {
-		mongoAuthorizer, err := authz.NewACLMongoAuthorizer(c.ACLMongo)
+		mongoAuthorizer, err := authz.NewACLMongoAuthorizer(c.ACLMongo, c.ACLOptions)
 		if err != nil {
 			return nil, err
 		}

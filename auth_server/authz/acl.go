@@ -31,7 +31,8 @@ type MatchConditions struct {
 }
 
 type aclAuthorizer struct {
-	acl ACL
+	acl     ACL
+	options *ACLOptions
 }
 
 func validatePattern(p string) error {
@@ -99,17 +100,17 @@ func ValidateACL(acl ACL) error {
 }
 
 // NewACLAuthorizer Creates a new static authorizer with ACL that have been read from the config file
-func NewACLAuthorizer(acl ACL) (Authorizer, error) {
+func NewACLAuthorizer(acl ACL, options *ACLOptions) (Authorizer, error) {
 	if err := ValidateACL(acl); err != nil {
 		return nil, err
 	}
 	glog.V(1).Infof("Created ACL Authorizer with %d entries", len(acl))
-	return &aclAuthorizer{acl: acl}, nil
+	return &aclAuthorizer{acl: acl, options: options}, nil
 }
 
 func (aa *aclAuthorizer) Authorize(ai *AuthRequestInfo) ([]string, error) {
 	for _, e := range aa.acl {
-		matched := e.Matches(ai)
+		matched := e.Matches(ai, aa.options)
 		if matched {
 			glog.V(2).Infof("%s matched %s (Comment: %s)", ai, e, e.Comment)
 			if len(*e.Actions) == 1 && (*e.Actions)[0] == "*" {
@@ -194,12 +195,12 @@ func getField(i interface{}, name string) (string, bool) {
 	return f.String(), true
 }
 
-func (mc *MatchConditions) Matches(ai *AuthRequestInfo) bool {
+func (mc *MatchConditions) Matches(ai *AuthRequestInfo, options *ACLOptions) bool {
 	vars := []string{
-		"${account}", regexp.QuoteMeta(ai.Account),
-		"${type}", regexp.QuoteMeta(ai.Type),
-		"${name}", regexp.QuoteMeta(ai.Name),
-		"${service}", regexp.QuoteMeta(ai.Service),
+		options.AccountToken, regexp.QuoteMeta(ai.Account),
+		options.TypeToken, regexp.QuoteMeta(ai.Type),
+		options.NameToken, regexp.QuoteMeta(ai.Name),
+		options.ServiceToken, regexp.QuoteMeta(ai.Service),
 	}
 	for _, x := range []string{"Account", "Type", "Name"} {
 		field, _ := getField(mc, x)
@@ -239,6 +240,6 @@ func (mc *MatchConditions) Matches(ai *AuthRequestInfo) bool {
 		matchLabels(mc.Labels, ai.Labels, vars)
 }
 
-func (e *ACLEntry) Matches(ai *AuthRequestInfo) bool {
-	return e.Match.Matches(ai)
+func (e *ACLEntry) Matches(ai *AuthRequestInfo, options *ACLOptions) bool {
+	return e.Match.Matches(ai, options)
 }

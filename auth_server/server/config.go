@@ -40,6 +40,7 @@ type Config struct {
 	LDAPAuth   *authn.LDAPAuthConfig          `yaml:"ldap_auth,omitempty"`
 	MongoAuth  *authn.MongoAuthConfig         `yaml:"mongo_auth,omitempty"`
 	ExtAuth    *authn.ExtAuthConfig           `yaml:"ext_auth,omitempty"`
+	ACLOptions *authz.ACLOptions              `yaml:"acl_options"`
 	ACL        authz.ACL                      `yaml:"acl,omitempty"`
 	ACLMongo   *authz.ACLMongoConfig          `yaml:"acl_mongo,omitempty"`
 	ExtAuthz   *authz.ExtAuthzConfig          `yaml:"ext_authz,omitempty"`
@@ -123,6 +124,18 @@ func validate(c *Config) error {
 		if err := c.ExtAuth.Validate(); err != nil {
 			return fmt.Errorf("bad ext_auth config: %s", err)
 		}
+	}
+	if c.ACLOptions.AccountToken == "" {
+		c.ACLOptions.AccountToken = "${account}"
+	}
+	if c.ACLOptions.TypeToken == "" {
+		c.ACLOptions.TypeToken = "${type}"
+	}
+	if c.ACLOptions.NameToken == "" {
+		c.ACLOptions.NameToken = "${name}"
+	}
+	if c.ACLOptions.ServiceToken == "" {
+		c.ACLOptions.ServiceToken = "${service}"
 	}
 	if c.ACL == nil && c.ACLMongo == nil && c.ExtAuthz == nil {
 		return errors.New("ACL is empty, this is probably a mistake. Use an empty list if you really want to deny all actions")
