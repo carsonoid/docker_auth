@@ -153,18 +153,27 @@ func matchString(pp *string, s string, vars []string) bool {
 	return err == nil && matched
 }
 
-func matchStringWithLabelPermutations(pp *string, s string, vars []string, labelPairs *[][]string) bool {
+func getLabelPermutations(labelMap *map[string][][]string) []string {
+	glog.V(2).Infof("LabelMap: %+v", labelMap)
+	var ret []string
+	for label, labelPairs := range *labelMap {
+		for _, labelPair := range labelPairs {
+			ret = append(ret, labelPair...)
+		}
+		delete(*labelMap, label)
+		ret = append(ret, getLabelPermutations(labelMap)...)
+	}
+	glog.V(2).Infof("Label permutations: %+v", ret)
+	return ret
+}
+
+func matchStringWithLabelPermutations(pp *string, s string, vars []string, labelMap *map[string][][]string) bool {
 	var matched bool
 	matched = matchString(pp, s, vars)
 	if matched {
 		return matched
 	}
-	for _, labelPair := range *labelPairs {
-		matched = matchString(pp, s, append(vars, labelPair...))
-		if matched {
-			break
-		}
-	}
+	matched = matchString(pp, s, append(vars, getLabelPermutations(labelMap)...))
 	return matched
 }
 
@@ -248,16 +257,17 @@ func (mc *MatchConditions) Matches(ai *AuthRequestInfo) bool {
 			vars = append(vars, found[0], text[index])
 		}
 	}
-	labelPairs := [][]string{}
+	labelMap := make(map[string][][]string)
 	for label, labelValues := range ai.Labels {
+		labelMap[label] = [][]string{}
 		for _, lv := range labelValues {
-			labelPairs = append(labelPairs, []string{fmt.Sprintf("${labels:%s}", label), regexp.QuoteMeta(lv)})
+			labelMap[label] = append(labelMap[label], []string{fmt.Sprintf("${labels:%s}", label), regexp.QuoteMeta(lv)})
 		}
 	}
-	return matchStringWithLabelPermutations(mc.Account, ai.Account, vars, &labelPairs) &&
-		matchStringWithLabelPermutations(mc.Type, ai.Type, vars, &labelPairs) &&
-		matchStringWithLabelPermutations(mc.Name, ai.Name, vars, &labelPairs) &&
-		matchStringWithLabelPermutations(mc.Service, ai.Service, vars, &labelPairs) &&
+	return matchStringWithLabelPermutations(mc.Account, ai.Account, vars, &labelMap) &&
+		matchStringWithLabelPermutations(mc.Type, ai.Type, vars, &labelMap) &&
+		matchStringWithLabelPermutations(mc.Name, ai.Name, vars, &labelMap) &&
+		matchStringWithLabelPermutations(mc.Service, ai.Service, vars, &labelMap) &&
 		matchIP(mc.IP, ai.IP) &&
 		matchLabels(mc.Labels, ai.Labels, vars)
 }

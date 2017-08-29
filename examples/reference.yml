@@ -195,6 +195,13 @@ ext_auth:
 #  * ${service} - the service name, specified by auth.token.service in the registry config.
 #  * ${type} - the type of the entity, normally "repository".
 #  * ${name} - the name of the repository (i.e. image), e.g. centos.
+#  * ${labels:<LABEL>} - Tests all values in the list of lables:<LABEL> for the user.
+#    For example, Given a user with labels = {"group": ["dev", "webdev"], "project": ["website", "api"]}
+#    will result in the following label replacement permutations:
+#      * ${labels:group} : dev, ${labels:project} : website
+#      * ${labels:group} : dev, ${labels:project} : api
+#      * ${labels:group} : webdev, ${labels:project} : website
+#      * ${labels:group} : webdev, ${labels:project} : api
 acl:
   - match: {ip: "127.0.0.0/8"}
     actions: ["*"]
@@ -235,6 +242,12 @@ acl:
   - match: {labels: {"group": "/trainee|dev/"}}
     actions: ["push", "pull"]
     comment: "Users assigned to group 'trainee' and 'dev' is able to push and pull"
+  - match: {name: "${labels:group}-shared/*"}
+    actions: ["push", "pull"]
+    comment: "Users can push to the shared namespace of any group they are in"
+  - match: {name: "${labels:project}/*"}
+    actions: ["push", "pull"]
+    comment: "Users can push to any project they are assigned to"
   # Access is denied by default.
 
 # (optional) Define to query ACL from a MongoDB server.
